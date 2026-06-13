@@ -181,10 +181,10 @@ with tempfile.TemporaryDirectory() as tmp:
         font_hdr = ImageFont.truetype("arial.ttf", 34)
         font_cell = ImageFont.truetype("arial.ttf", 32)
     except:
-        font_box = ImageFont.truetype("DejaVuSans.ttf", 44)
-        font_title = ImageFont.truetype("DejaVuSans.ttf", 40)
-        font_hdr = ImageFont.truetype("DejaVuSans.ttf", 34)
-        font_cell = ImageFont.truetype("DejaVuSans.ttf", 32)
+        font_box = ImageFont.truetype("Amiri-Regular.ttf", 44)
+        font_title = ImageFont.truetype("Amiri-Regular.ttf", 40)
+        font_hdr = ImageFont.truetype("Amiri-Regular.ttf", 34)
+        font_cell = ImageFont.truetype("Amiri-Regular.ttf", 32)
 
     y = 30
     box_h = 100
