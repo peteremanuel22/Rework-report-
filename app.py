@@ -169,41 +169,122 @@ with c2:
     st.markdown("### Top 10 – Selected Day")
     st.dataframe(day_tbl, use_container_width=True)
 # ======================================================
-# ✅ EXPORT SECTION (SAFE VERSION — NO KALEIDO)
+# ✅ JPG REPORT EXPORT (PROFESSIONAL)
 # ======================================================
+import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 import tempfile
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 
-st.subheader("⬇️ Download Reports")
+st.subheader("⬇️ Download JPG Report")
 
-with tempfile.TemporaryDirectory() as tmp:
+if st.button("Generate JPG Report"):
 
-    pdf_path = tmp + "/report.pdf"
+    with tempfile.TemporaryDirectory() as tmp:
 
-    # Create PDF
-    c = canvas.Canvas(pdf_path, pagesize=A4)
-    width, height = A4
+        # ---------------------------
+        # ✅ 1. Create TREND chart image
+        # ---------------------------
+        fig1, ax1 = plt.subplots(figsize=(12, 4))
 
-    # Title
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(180, height - 40, "Rework Analysis Report")
+        ax1.plot(daily.index, daily["Rework %"], marker="o")
 
-    # KPIs
-    c.setFont("Helvetica", 10)
-    c.drawString(50, height - 80, f"Total Rework: {total_rework}")
-    c.drawString(50, height - 100, f"Total Production: {total_production}")
-    c.drawString(50, height - 120, f"Monthly %: {monthly_ratio:.2f}%")
+        for x, y in zip(daily.index, daily["Rework %"]):
+            ax1.text(x, y, f"{y:.1f}%", fontsize=8)
 
-    c.drawString(50, height - 150, "Open app to view full interactive charts")
+        ax1.set_title("الاتجاه اليومي لنسبة إعادة التشغيل")
+        ax1.set_xlabel("التاريخ")
+        ax1.set_ylabel("النسبة %")
 
-    c.save()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
 
-    # Download PDF
-    with open(pdf_path, "rb") as f:
-        st.download_button(
-            "📄 Download PDF Report",
-            f,
-            file_name="Rework_Report.pdf",
-            mime="application/pdf"
-        )
+        trend_img = tmp + "/trend.png"
+        plt.savefig(trend_img)
+        plt.close()
+
+        # ---------------------------
+        # ✅ 2. Create PARETO chart image
+        # ---------------------------
+        pareto = rework_df["Problem"].value_counts().head(10)
+
+        fig2, ax2 = plt.subplots(figsize=(12, 4))
+
+        ax2.bar(range(len(pareto)), pareto.values)
+
+        ax2.set_xticks(range(len(pareto)))
+        ax2.set_xticklabels(pareto.index, rotation=60, ha="right")
+
+        ax2.set_title("تحليل باريتو")
+
+        plt.tight_layout()
+
+        pareto_img = tmp + "/pareto.png"
+        plt.savefig(pareto_img)
+        plt.close()
+
+        # ---------------------------
+        # ✅ 3. Create FINAL IMAGE CANVAS
+        # ---------------------------
+        width = 1400
+        height = 1800
+
+        report = Image.new("RGB", (width, height), "white")
+        draw = ImageDraw.Draw(report)
+
+        # simple font
+        try:
+            font = ImageFont.truetype("arial.ttf", 24)
+            small_font = ImageFont.truetype("arial.ttf", 20)
+        except:
+            font = None
+            small_font = None
+
+        y = 20
+
+        # ---------------------------
+        # ✅ 4. Draw KPI Boxes
+        # ---------------------------
+        kpis = [
+            f"Total Rework: {total_rework}",
+            f"Total Production: {total_production}",
+            f"Monthly %: {monthly_ratio:.2f}%",
+            f"Selected Day: {selected_day}",
+            f"Daily %: {daily_ratio:.2f}%"
+        ]
+
+        for text in kpis:
+            draw.rectangle([50, y, width-50, y+50], outline="black", width=2)
+            draw.text((60, y+10), text, fill="black", font=font)
+            y += 70
+
+        # ---------------------------
+        # ✅ 5. Add Trend Image
+        # ---------------------------
+        trend = Image.open(trend_img)
+        report.paste(trend.resize((1200, 400)), (100, y))
+        y += 450
+
+        # ---------------------------
+        # ✅ 6. Add Pareto Image
+        # ---------------------------
+        pareto = Image.open(pareto_img)
+        report.paste(pareto.resize((1200, 400)), (100, y))
+        y += 450
+
+        # ---------------------------
+        # ✅ 7. Save JPG
+        # ---------------------------
+        final_path = tmp + "/report.jpg"
+        report.save(final_path, "JPEG")
+
+        # ---------------------------
+        # ✅ 8. Download button
+        # ---------------------------
+        with open(final_path, "rb") as f:
+            st.download_button(
+                "🖼️ Download JPG Report",
+                f,
+                file_name="Rework_Report.jpg",
+                mime="image/jpeg"
+            )
