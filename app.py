@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+import tempfile
+import os
+from PIL import Image
+
 
 # ======================================================
 # ✅ Page Config
@@ -162,4 +168,77 @@ with c1:
 with c2:
     st.markdown("### Top 10 – Selected Day")
     st.dataframe(day_tbl, use_container_width=True)
+
+# ======================================================
+# ✅ EXPORT SECTION
+# ======================================================
+st.subheader("⬇️ Download Reports")
+
+# create temp folder
+with tempfile.TemporaryDirectory() as tmp:
+
+    # -----------------------------
+    # ✅ Save charts as images
+    # -----------------------------
+    trend_path = os.path.join(tmp, "trend.png")
+    pareto_path = os.path.join(tmp, "pareto.png")
+
+    fig_trend.write_image(trend_path)
+    fig_pareto.write_image(pareto_path)
+
+    # -----------------------------
+    # ✅ Create PDF
+    # -----------------------------
+    pdf_path = os.path.join(tmp, "report.pdf")
+
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    width, height = A4
+
+    # Title
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(200, height - 40, "Rework Analysis Report")
+
+    # KPIs
+    c.setFont("Helvetica", 10)
+    c.drawString(50, height - 80, f"Total Rework: {total_rework}")
+    c.drawString(50, height - 100, f"Total Production: {total_production}")
+    c.drawString(50, height - 120, f"Monthly %: {monthly_ratio:.2f}%")
+
+    # Images
+    c.drawImage(trend_path, 50, height - 380, width=500, height=200)
+    c.drawImage(pareto_path, 50, height - 620, width=500, height=200)
+
+    c.save()
+
+    # -----------------------------
+    # ✅ Download Buttons
+    # -----------------------------
+    col1, col2, col3 = st.columns(3)
+
+    # PDF download
+    with open(pdf_path, "rb") as f:
+        col1.download_button(
+            "📄 Download PDF Report",
+            f,
+            file_name="Rework_Report.pdf",
+            mime="application/pdf"
+        )
+
+    # JPG Trend
+    with open(trend_path, "rb") as f:
+        col2.download_button(
+            "🖼️ Trend Chart JPG",
+            f,
+            file_name="Trend.jpg",
+            mime="image/jpeg"
+        )
+
+    # JPG Pareto
+    with open(pareto_path, "rb") as f:
+        col3.download_button(
+            "🖼️ Pareto Chart JPG",
+            f,
+            file_name="Pareto.jpg",
+            mime="image/jpeg"
+        )
 
