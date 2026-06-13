@@ -3,7 +3,7 @@ from PIL import Image, ImageFont, ImageDraw
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 # ======================================================
-# Arabic font setup
+# Arabic font setup 
 # ======================================================
 
 FONT_PATH = "NotoSansArabic-Regular.ttf"
