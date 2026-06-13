@@ -2,6 +2,20 @@ import streamlit as st
 from PIL import Image, ImageFont, ImageDraw
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+# ======================================================
+# Arabic font setup
+# ======================================================
+
+FONT_PATH = "Amiri-Regular.ttf"
+
+fm.fontManager.addfont(FONT_PATH)
+
+arabic_font = fm.FontProperties(
+    fname=FONT_PATH
+)
+
+plt.rcParams["font.family"] = arabic_font.get_name()
+plt.rcParams["axes.unicode_minus"] = False
 import plotly.express as px
 
 # --- ARABIC TEXT FIX LIBRARIES ---
@@ -34,8 +48,14 @@ import os
 # Arabic helper (RTL safe)
 # ======================================================
 def ar(text):
-    return get_display(reshape(str(text)))
+    if pd.isna(text):
+        return ""
 
+    text = str(text).strip()
+
+    reshaped = reshape(text)
+
+    return get_display(reshaped)
 # ======================================================
 # Page config
 # ======================================================
@@ -124,9 +144,18 @@ for x, y in zip(daily.index, daily["Rework %"]):
     ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
                 textcoords="offset points", ha="center", fontsize=10)
 
-ax.set_title(ar("الاتجاه اليومي لنسبة إعادة التشغيل"))
-ax.set_xlabel(ar("التاريخ"))
-ax.set_ylabel(ar("نسبة إعادة التشغيل %"))
+ax.set_title(
+    ar("الاتجاه اليومي لنسبة إعادة التشغيل"),
+    fontproperties=arabic_font
+)
+ax.set_xlabel(
+    ar("التاريخ"),
+    fontproperties=arabic_font
+)
+ax.set_ylabel(
+    ar("نسبة إعادة التشغيل %"),
+    fontproperties=arabic_font
+)
 plt.xticks(rotation=45)
 plt.tight_layout()
 st.pyplot(fig_trend)
