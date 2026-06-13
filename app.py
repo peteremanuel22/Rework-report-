@@ -5,7 +5,7 @@ import matplotlib.font_manager as fm
 # ======================================================
 # Arabic font setup 
 # ======================================================
-
+st.write("Font used by matplotlib:", arabic_font.get_name())
 FONT_PATH = "NotoSansArabic-Regular.ttf"
 
 fm.fontManager.addfont(FONT_PATH)
