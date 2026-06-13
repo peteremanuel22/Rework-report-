@@ -11,9 +11,18 @@ import os
 # ======================================================
 def fix_arabic(text):
     if not text:
-        return text
-    reshaped = arabic_reshaper.reshape(str(text))
-    return get_display(reshaped)
+        return ""
+
+    text = str(text)
+
+    # reshape letters correctly
+    reshaped = arabic_reshaper.reshape(text)
+
+    # fix direction (RTL)
+    bidi_text = get_display(reshaped)
+
+    return bidi_text
+
 
 # ======================================================
 # ✅ Font Setup
@@ -161,39 +170,39 @@ st.pyplot(fig_trend)
 # ✅ Pareto Chart (FIXED overlap + Arabic)
 # ======================================================
 pareto = rework_df["Problem"].value_counts().head(10)
+
+# ✅ FIX DIRECTION
+pareto = pareto.iloc[::-1]
+
 cum_pct = pareto.cumsum() / pareto.sum() * 100
 
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
 
-ax2.bar(range(len(pareto)), pareto.values)
+ax2.barh(range(len(pareto)), pareto.values)
 
 labels = [fix_arabic(x) for x in pareto.index]
 
-ax2.set_xticks(range(len(labels)))
-ax2.set_xticklabels(labels,
-                    rotation=35,
-                    ha="right",
-                    fontsize=9,
+ax2.set_yticks(range(len(labels)))
+ax2.set_yticklabels(labels,
+                    fontsize=10,
                     fontproperties=arabic_font)
 
-ax2.set_xlabel(fix_arabic("سبب إعادة التشغيل"),
+ax2.set_xlabel(fix_arabic("عدد الحالات"),
                fontproperties=arabic_font)
 
-ax2.set_ylabel(fix_arabic("عدد الحالات"),
+ax2.set_ylabel(fix_arabic("سبب إعادة التشغيل"),
                fontproperties=arabic_font)
 
-ax3 = ax2.twinx()
-ax3.plot(range(len(pareto)), cum_pct.values,
+# cumulative line
+ax3 = ax2.twiny()
+ax3.plot(cum_pct.values, range(len(pareto)),
          color="red", marker="o")
 
-ax3.set_ylabel(fix_arabic("النسبة التراكمية %"),
+ax3.set_xlabel(fix_arabic("النسبة التراكمية %"),
                fontproperties=arabic_font)
 
-plt.subplots_adjust(bottom=0.4)
 plt.tight_layout()
-
 st.pyplot(fig_pareto)
-
 # ======================================================
 # ✅ Tables (NO Arabic fix here!)
 # ======================================================
