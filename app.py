@@ -173,23 +173,12 @@ for x, y in zip(daily.index, daily["Rework %"]):
         fontsize=10
     )
 
-ax.set_title(
-    ar("الاتجاه اليومي لنسبة إعادة التشغيل"),
-    fontproperties=arabic_font,
-    fontsize=16
-)
+ax.set_title(fix_arabic("الاتجاه اليومي لنسبة إعادة التشغيل"))
 
-ax.set_xlabel(
-    ar("التاريخ"),
-    fontproperties=arabic_font,
-    fontsize=12
-)
 
-ax.set_ylabel(
-    ar("نسبة إعادة التشغيل %"),
-    fontproperties=arabic_font,
-    fontsize=12
-)
+ax.set_xlabel(fix_arabic("التاريخ"))
+ax.set_ylabel(fix_arabic("نسبة إعادة التشغيل %"))
+
 
 plt.xticks(rotation=45)
 
@@ -237,13 +226,7 @@ ax2.set_ylabel(
 
 ax2.set_xticks(range(len(pareto)))
 
-ax2.set_xticklabels(
-    [ar(x) for x in pareto.index],
-    rotation=45,
-    ha="right",
-    fontsize=9,
-    fontproperties=arabic_font
-)
+ax2.set_xticklabels([fix_arabic(x) for x in pareto.index])
 
 ax2.invert_xaxis()
 
