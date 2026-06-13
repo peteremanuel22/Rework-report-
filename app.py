@@ -1,66 +1,15 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import arabic_reshaper
-from bidi.algorithm import get_display
-import os
+import plotly.express as px
 
 # ======================================================
-# ✅ Arabic Fix (ONLY FOR CHARTS)
-# ======================================================
-def fix_arabic(text):
-    if not text:
-        return ""
-
-    text = str(text)
-
-    # reshape letters correctly
-    reshaped = arabic_reshaper.reshape(text)
-
-    # fix direction (RTL)
-    bidi_text = get_display(reshaped)
-
-    return bidi_text
-
-
-# ======================================================
-# ✅ Font Setup
-# ======================================================
-FONT_PATH = "NotoSansArabic-Regular.ttf"
-
-if os.path.exists(FONT_PATH):
-    fm.fontManager.addfont(FONT_PATH)
-    arabic_font = fm.FontProperties(fname=FONT_PATH)
-else:
-    arabic_font = None
-    st.warning("Font not found")
-
-plt.rcParams["axes.unicode_minus"] = False
-
-# ======================================================
-# ✅ PAGE RTL FIX (IMPORTANT)
-# ======================================================
-st.markdown(
-    """
-    <style>
-    body {
-        direction: RTL;
-        text-align: right;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# ======================================================
-# ✅ Page
+# ✅ Page Config
 # ======================================================
 st.set_page_config(layout="wide", page_title="Rework Dashboard")
 st.title("📊 Rework Analysis Dashboard")
 
 # ======================================================
-# ✅ Upload
+# ✅ Upload Files
 # ======================================================
 c1, c2 = st.columns(2)
 
@@ -74,7 +23,7 @@ if not rework_file or not production_file:
     st.stop()
 
 # ======================================================
-# ✅ Read Excel
+# ✅ Read Excel (SAP style)
 # ======================================================
 def read_sap(file):
     raw = pd.read_excel(file, header=None)
@@ -89,7 +38,7 @@ rework_df = read_sap(rework_file)
 prod_df = read_sap(production_file)
 
 # ======================================================
-# ✅ Date
+# ✅ Date Handling
 # ======================================================
 rework_df["Date"] = pd.to_datetime(rework_df.iloc[:, 0], errors="coerce").dt.date
 prod_df["Date"] = pd.to_datetime(prod_df.iloc[:, 0], errors="coerce").dt.date
@@ -136,75 +85,62 @@ k4.metric("Selected Day", selected_day.strftime("%Y-%m-%d"))
 k5.metric("Daily %", f"{daily_ratio:.2f}%")
 
 # ======================================================
-# ✅ Trend Chart (FIXED Arabic)
+# ✅ TREND CHART (Plotly — Arabic works automatically)
 # ======================================================
-fig_trend, ax = plt.subplots(figsize=(13, 5))
+trend_data = daily.reset_index()
 
-ax.plot(daily.index, daily["Rework %"], marker="o")
+fig_trend = px.line(
+    trend_data,
+    x="Date",
+    y="Rework %",
+    markers=True,
+    title="الاتجاه اليومي لنسبة إعادة التشغيل"
+)
 
-for x, y in zip(daily.index, daily["Rework %"]):
-    ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
-                textcoords="offset points", ha="center", fontsize=9)
+fig_trend.update_layout(
+    xaxis_title="التاريخ",
+    yaxis_title="نسبة إعادة التشغيل %",
+)
 
-ax.set_title(fix_arabic("الاتجاه اليومي لنسبة إعادة التشغيل"),
-             fontproperties=arabic_font)
-
-ax.set_xlabel(fix_arabic("التاريخ"),
-              fontproperties=arabic_font)
-
-ax.set_ylabel(fix_arabic("نسبة إعادة التشغيل %"),
-              fontproperties=arabic_font)
-
-plt.xticks(rotation=45)
-
-if arabic_font:
-    for label in ax.get_xticklabels():
-        label.set_fontproperties(arabic_font)
-    for label in ax.get_yticklabels():
-        label.set_fontproperties(arabic_font)
-
-plt.tight_layout()
-st.pyplot(fig_trend)
+st.plotly_chart(fig_trend, use_container_width=True)
 
 # ======================================================
-# ✅ Pareto Chart (FIXED overlap + Arabic)
+# ✅ PARETO CHART (Plotly — FIXED Arabic + NO overlap)
 # ======================================================
-pareto = rework_df["Problem"].value_counts().head(10)
+pareto = rework_df["Problem"].value_counts().head(10).reset_index()
+pareto.columns = ["Problem", "Count"]
 
-# ✅ FIX DIRECTION
-pareto = pareto.iloc[::-1]
+pareto["Cum %"] = pareto["Count"].cumsum() / pareto["Count"].sum() * 100
 
-cum_pct = pareto.cumsum() / pareto.sum() * 100
-
-fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
-
-ax2.barh(range(len(pareto)), pareto.values)
-
-labels = [fix_arabic(x) for x in pareto.index]
-
-ax2.set_yticks(range(len(labels)))
-ax2.set_yticklabels(labels,
-                    fontsize=10,
-                    fontproperties=arabic_font)
-
-ax2.set_xlabel(fix_arabic("عدد الحالات"),
-               fontproperties=arabic_font)
-
-ax2.set_ylabel(fix_arabic("سبب إعادة التشغيل"),
-               fontproperties=arabic_font)
+fig_pareto = px.bar(
+    pareto,
+    x="Count",
+    y="Problem",
+    orientation="h",
+    text="Count",
+    title="تحليل باريتو لأسباب إعادة التشغيل"
+)
 
 # cumulative line
-ax3 = ax2.twiny()
-ax3.plot(cum_pct.values, range(len(pareto)),
-         color="red", marker="o")
+fig_pareto.add_scatter(
+    x=pareto["Cum %"],
+    y=pareto["Problem"],
+    mode="lines+markers",
+    name="النسبة التراكمية %",
+    xaxis="x2"
+)
 
-ax3.set_xlabel(fix_arabic("النسبة التراكمية %"),
-               fontproperties=arabic_font)
+fig_pareto.update_layout(
+    xaxis=dict(title="عدد الحالات"),
+    xaxis2=dict(title="النسبة التراكمية %", overlaying="x", side="top"),
+    yaxis=dict(title="سبب إعادة التشغيل"),
+    height=600
+)
 
-plt.tight_layout()
-st.pyplot(fig_pareto)
+st.plotly_chart(fig_pareto, use_container_width=True)
+
 # ======================================================
-# ✅ Tables (NO Arabic fix here!)
+# ✅ Tables (Arabic works naturally — no fix needed)
 # ======================================================
 month_tbl = rework_df["Problem"].value_counts().head(10).reset_index()
 month_tbl.columns = ["Problem", "Value"]
@@ -226,3 +162,4 @@ with c1:
 with c2:
     st.markdown("### Top 10 – Selected Day")
     st.dataframe(day_tbl, use_container_width=True)
+``
