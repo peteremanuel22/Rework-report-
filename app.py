@@ -11,19 +11,21 @@ import os
 # ======================================================
 # Font Configuration & Arabic Helper
 # ======================================================
+# You MUST have "Amiri-Regular.ttf" uploaded to your GitHub repo in the same folder as app.py
 FONT_PATH = "Amiri-Regular.ttf"
 
 # Load the Arabic font for Matplotlib
 try:
     arabic_font = fm.FontProperties(fname=FONT_PATH)
 except FileNotFoundError:
-    st.error(f"Error: Could not find '{FONT_PATH}'. Please ensure it is uploaded to your GitHub repository.")
+    st.error(f"Error: Could not find '{FONT_PATH}'. Please upload it to your GitHub repository.")
     st.stop()
 
 def ar(text):
-    """Reshapes and reverses Arabic text for RTL support."""
+    """Reshapes and reverses Arabic text for correct RTL rendering."""
     if pd.isna(text) or not text:
         return text
+    # 1. Reshape to connect letters, 2. get_display to fix Left-to-Right
     return get_display(arabic_reshaper.reshape(str(text)))
 
 # ======================================================
@@ -114,7 +116,7 @@ for x, y in zip(daily.index, daily["Rework %"]):
     ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
                 textcoords="offset points", ha="center", fontsize=10)
 
-# Apply Arabic font properties here
+# Apply Arabic font properties and fix_arabic helper here
 ax.set_title(ar("الاتجاه اليومي لنسبة إعادة التشغيل"), fontproperties=arabic_font)
 ax.set_xlabel(ar("التاريخ"), fontproperties=arabic_font)
 ax.set_ylabel(ar("نسبة إعادة التشغيل %"), fontproperties=arabic_font)
