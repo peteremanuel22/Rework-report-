@@ -5,7 +5,7 @@ import matplotlib.font_manager as fm
 # ======================================================
 # Arabic font setup 
 # ======================================================
-st.write("Font used by matplotlib:", arabic_font.get_name())
+
 FONT_PATH = "NotoSansArabic-Regular.ttf"
 
 fm.fontManager.addfont(FONT_PATH)
@@ -16,6 +16,7 @@ arabic_font = fm.FontProperties(
 
 plt.rcParams["font.family"] = arabic_font.get_name()
 plt.rcParams["axes.unicode_minus"] = False
+st.write("Font used by matplotlib:", arabic_font.get_name())
 import plotly.express as px
 
 # --- ARABIC TEXT FIX LIBRARIES ---
