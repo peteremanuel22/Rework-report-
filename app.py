@@ -9,23 +9,30 @@ import tempfile
 import os
 
 # ======================================================
-# Font Configuration & Arabic Helper
+# Font Configuration & Arabic Helper (CLOUD FIX)
 # ======================================================
-# You MUST have "Amiri-Regular.ttf" uploaded to your GitHub repo in the same folder as app.py
-FONT_PATH = "Amiri-Regular.ttf"
+# 1. Get the absolute path to the font to guarantee Streamlit finds it
+current_dir = os.path.dirname(os.path.abspath(__file__))
+FONT_PATH = os.path.join(current_dir, "Amiri-Regular.ttf")
 
-# Load the Arabic font for Matplotlib
+# 2. Forcefully register the font into Matplotlib's global cache
 try:
-    arabic_font = fm.FontProperties(fname=FONT_PATH)
+    fm.fontManager.addfont(FONT_PATH)
+    # Get the actual internal name of the font (usually 'Amiri')
+    prop = fm.FontProperties(fname=FONT_PATH)
+    # Set it as the global default for all Matplotlib charts
+    plt.rcParams['font.family'] = prop.get_name()
+    
+    # Keep this variable for your explicit calls just in case
+    arabic_font = prop 
 except FileNotFoundError:
-    st.error(f"Error: Could not find '{FONT_PATH}'. Please upload it to your GitHub repository.")
+    st.error(f"Error: Could not find '{FONT_PATH}'. Please ensure it is pushed to GitHub.")
     st.stop()
 
 def ar(text):
     """Reshapes and reverses Arabic text for correct RTL rendering."""
     if pd.isna(text) or not text:
         return text
-    # 1. Reshape to connect letters, 2. get_display to fix Left-to-Right
     return get_display(arabic_reshaper.reshape(str(text)))
 
 # ======================================================
@@ -116,7 +123,6 @@ for x, y in zip(daily.index, daily["Rework %"]):
     ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
                 textcoords="offset points", ha="center", fontsize=10)
 
-# Apply Arabic font properties and fix_arabic helper here
 ax.set_title(ar("الاتجاه اليومي لنسبة إعادة التشغيل"), fontproperties=arabic_font)
 ax.set_xlabel(ar("التاريخ"), fontproperties=arabic_font)
 ax.set_ylabel(ar("نسبة إعادة التشغيل %"), fontproperties=arabic_font)
@@ -134,12 +140,10 @@ cutoff_index = list(pareto.index).index(cum_pct[cum_pct >= 80].index[0])
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
 ax2.bar(range(len(pareto)), pareto.values, width=0.6)
 
-# Apply Arabic font properties here
 ax2.set_xlabel(ar("سبب إعادة التشغيل"), fontproperties=arabic_font)
 ax2.set_ylabel(ar("عدد الحالات"), fontproperties=arabic_font)
 ax2.set_xticks(range(len(pareto)))
 
-# Apply Arabic font properties to X-axis tick labels
 ax2.set_xticklabels([ar(x) for x in pareto.index],
                     rotation=45, ha="right", fontsize=9, fontproperties=arabic_font)
 ax2.invert_xaxis()
