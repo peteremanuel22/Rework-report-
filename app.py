@@ -1,4 +1,6 @@
 import streamlit as st
+import arabic_reshaper
+from bidi.algorithm import get_display
 import pandas as pd
 import matplotlib.pyplot as plt
 from arabic_reshaper import reshape
