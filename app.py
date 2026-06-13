@@ -1,90 +1,49 @@
 import streamlit as st
-from PIL import Image, ImageFont, ImageDraw
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-# ======================================================
-# Arabic font setup 
-# ======================================================
-
-FONT_PATH = "NotoSansArabic-Regular.ttf"
-
-fm.fontManager.addfont(FONT_PATH)
-
-arabic_font = fm.FontProperties(
-    fname=FONT_PATH
-)
-
-plt.rcParams["font.family"] = arabic_font.get_name()
-plt.rcParams["axes.unicode_minus"] = False
-st.write("Font used by matplotlib:", arabic_font.get_name())
-import plotly.express as px
-
-# --- ARABIC TEXT FIX LIBRARIES ---
-import arabic_reshaper
-from bidi.algorithm import get_display
-
-def fix_arabic(text):
-    """Reshapes and reverses Arabic text for proper rendering in images and charts."""
-    if not text:
-        return text
-    reshaped_text = arabic_reshaper.reshape(str(text))
-    return get_display(reshaped_text)
-
-# --- FONT CONFIGURATION ---
-# Ensure "Amiri-Regular.ttf" is uploaded directly to your GitHub repo
-FONT_PATH = "NotoSansArabic-Regular.ttf"
-
-try:
-    fm.fontManager.addfont(FONT_PATH)
-
-    arabic_font = fm.FontProperties(
-        fname=FONT_PATH
-    )
-
-    plt.rcParams["font.family"] = arabic_font.get_name()
-    plt.rcParams["axes.unicode_minus"] = False
-
-except Exception as e:
-    st.error(f"Font loading error: {e}")
-
-import streamlit as st
-import arabic_reshaper
-from bidi.algorithm import get_display
 import pandas as pd
 import matplotlib.pyplot as plt
-from arabic_reshaper import reshape
+import matplotlib.font_manager as fm
+import arabic_reshaper
 from bidi.algorithm import get_display
 from PIL import Image, ImageDraw, ImageFont
-import tempfile
 import os
 
 # ======================================================
-# Arabic helper (RTL safe)
+# ✅ Arabic Fix Function
 # ======================================================
-def ar(text):
-    if text is None:
-        return ""
+def fix_arabic(text):
+    if not text:
+        return text
+    reshaped = arabic_reshaper.reshape(str(text))
+    return get_display(reshaped)
 
-    text = str(text).strip()
-
-    if text == "":
-        return ""
-
-    return get_display(
-        arabic_reshaper.reshape(text)
-    )
 # ======================================================
-# Page config
+# ✅ Font Setup
 # ======================================================
-st.set_page_config(layout="wide", page_title="Rework Analysis Dashboard")
+FONT_PATH = "NotoSansArabic-Regular.ttf"
+
+if os.path.exists(FONT_PATH):
+    fm.fontManager.addfont(FONT_PATH)
+    arabic_font = fm.FontProperties(fname=FONT_PATH)
+else:
+    arabic_font = None
+    st.warning("Arabic font not found, default font will be used")
+
+plt.rcParams["axes.unicode_minus"] = False
+
+# ======================================================
+# ✅ Page Config
+# ======================================================
+st.set_page_config(layout="wide", page_title="Rework Dashboard")
 st.title("📊 Rework Analysis Dashboard")
 
 # ======================================================
-# Upload files
+# ✅ Upload Files
 # ======================================================
 c1, c2 = st.columns(2)
+
 with c1:
     rework_file = st.file_uploader("📂 Rework File (Excel)", type=["xlsx"])
+
 with c2:
     production_file = st.file_uploader("📂 Production File (Excel)", type=["xlsx"])
 
@@ -92,7 +51,7 @@ if not rework_file or not production_file:
     st.stop()
 
 # ======================================================
-# Read SAP-style Excel
+# ✅ Read Excel (SAP style)
 # ======================================================
 def read_sap(file):
     raw = pd.read_excel(file, header=None)
@@ -107,15 +66,16 @@ rework_df = read_sap(rework_file)
 prod_df = read_sap(production_file)
 
 # ======================================================
-# Date handling
+# ✅ Date Handling
 # ======================================================
 rework_df["Date"] = pd.to_datetime(rework_df.iloc[:, 0], errors="coerce").dt.date
 prod_df["Date"] = pd.to_datetime(prod_df.iloc[:, 0], errors="coerce").dt.date
+
 rework_df.dropna(subset=["Date"], inplace=True)
 prod_df.dropna(subset=["Date"], inplace=True)
 
 # ======================================================
-# Problem column
+# ✅ Problem Column
 # ======================================================
 rework_df["Problem"] = (
     rework_df.iloc[:, 7].astype(str) + " " +
@@ -123,13 +83,14 @@ rework_df["Problem"] = (
 )
 
 # ======================================================
-# Calculations
+# ✅ Calculations
 # ======================================================
 daily_rework = rework_df.groupby("Date").size()
 daily_prod = prod_df.groupby("Date").size()
 
 daily = pd.concat([daily_rework, daily_prod], axis=1)
 daily.columns = ["Rework", "Production"]
+
 daily["Rework %"] = daily["Rework"] / daily["Production"] * 100
 
 total_rework = int(daily["Rework"].sum())
@@ -140,127 +101,92 @@ selected_day = st.selectbox("Select Day", daily.index, index=len(daily) - 1)
 daily_ratio = daily.loc[selected_day, "Rework %"]
 
 # ======================================================
-# KPI UI
+# ✅ KPI
 # ======================================================
 k1, k2, k3 = st.columns(3)
 k1.metric("Total Rework", total_rework)
 k2.metric("Total Production", total_production)
-k3.metric("Monthly Rework / Production", f"{monthly_ratio:.2f}%")
+k3.metric("Monthly %", f"{monthly_ratio:.2f}%")
 
 k4, k5 = st.columns(2)
 k4.metric("Selected Day", selected_day.strftime("%Y-%m-%d"))
-k5.metric("Daily Rework / Production", f"{daily_ratio:.2f}%")
+k5.metric("Daily %", f"{daily_ratio:.2f}%")
 
 # ======================================================
-# Daily trend chart (UI)
+# ✅ Daily Trend Chart
 # ======================================================
-
 fig_trend, ax = plt.subplots(figsize=(13, 5))
 
-ax.plot(
-    daily.index,
-    daily["Rework %"],
-    marker="o"
-)
+ax.plot(daily.index, daily["Rework %"], marker="o")
 
 for x, y in zip(daily.index, daily["Rework %"]):
-    ax.annotate(
-        f"{y:.1f}%",
-        (x, y),
-        xytext=(0, 8),
-        textcoords="offset points",
-        ha="center",
-        fontsize=10
-    )
+    ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
+                textcoords="offset points", ha="center", fontsize=9)
 
-ax.set_title(fix_arabic("الاتجاه اليومي لنسبة إعادة التشغيل"))
+ax.set_title(fix_arabic("الاتجاه اليومي لنسبة إعادة التشغيل"),
+             fontproperties=arabic_font)
 
+ax.set_xlabel(fix_arabic("التاريخ"),
+              fontproperties=arabic_font)
 
-ax.set_xlabel(fix_arabic("التاريخ"))
-ax.set_ylabel(fix_arabic("نسبة إعادة التشغيل %"))
-
+ax.set_ylabel(fix_arabic("نسبة إعادة التشغيل %"),
+              fontproperties=arabic_font)
 
 plt.xticks(rotation=45)
 
 for label in ax.get_xticklabels():
-    label.set_fontproperties(arabic_font)
+    if arabic_font:
+        label.set_fontproperties(arabic_font)
 
 for label in ax.get_yticklabels():
-    label.set_fontproperties(arabic_font)
+    if arabic_font:
+        label.set_fontproperties(arabic_font)
 
 plt.tight_layout()
-
 st.pyplot(fig_trend)
 
 # ======================================================
-# Pareto chart (UI)
+# ✅ Pareto Chart (FIXED)
 # ======================================================
-
-pareto = rework_df["Problem"].value_counts()
+pareto = rework_df["Problem"].value_counts().head(10)
 
 cum_pct = pareto.cumsum() / pareto.sum() * 100
 
-cutoff_index = list(pareto.index).index(
-    cum_pct[cum_pct >= 80].index[0]
-)
-
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
 
-ax2.bar(
-    range(len(pareto)),
-    pareto.values,
-    width=0.6
-)
+ax2.bar(range(len(pareto)), pareto.values)
 
-ax2.set_xlabel(
-    ar("سبب إعادة التشغيل"),
-    fontproperties=arabic_font,
-    fontsize=12
-)
+labels = [fix_arabic(x) for x in pareto.index]
 
-ax2.set_ylabel(
-    ar("عدد الحالات"),
-    fontproperties=arabic_font,
-    fontsize=12
-)
+ax2.set_xticks(range(len(labels)))
+ax2.set_xticklabels(labels,
+                    rotation=35,
+                    ha="right",
+                    fontsize=9,
+                    fontproperties=arabic_font)
 
-ax2.set_xticks(range(len(pareto)))
+ax2.set_xlabel(fix_arabic("سبب إعادة التشغيل"),
+               fontproperties=arabic_font)
 
-ax2.set_xticklabels([fix_arabic(x) for x in pareto.index])
+ax2.set_ylabel(fix_arabic("عدد الحالات"),
+               fontproperties=arabic_font)
 
-ax2.invert_xaxis()
-
-ax2.axvline(
-    cutoff_index,
-    linestyle="--",
-    linewidth=2
-)
-
+# cumulative line
 ax3 = ax2.twinx()
+ax3.plot(range(len(pareto)), cum_pct.values,
+         color="red", marker="o")
 
-ax3.plot(
-    range(len(pareto)),
-    cum_pct.values,
-    color="red",
-    marker="o"
-)
+ax3.set_ylabel(fix_arabic("النسبة التراكمية %"),
+               fontproperties=arabic_font)
 
-ax3.set_ylabel(
-    ar("النسبة التراكمية %"),
-    fontproperties=arabic_font,
-    fontsize=12
-)
-
-for label in ax2.get_yticklabels():
-    label.set_fontproperties(arabic_font)
-
-plt.subplots_adjust(bottom=0.35)
-
+# spacing fix
+plt.subplots_adjust(bottom=0.4)
 plt.tight_layout()
 
 st.pyplot(fig_pareto)
+
 # ======================================================
-# Tables (UI)
+# ✅ Tables
 # ======================================================
 month_tbl = rework_df["Problem"].value_counts().head(10).reset_index()
 month_tbl.columns = ["Problem", "Value"]
@@ -271,142 +197,18 @@ day_tbl = day_df["Problem"].value_counts().head(10).reset_index()
 day_tbl.columns = ["Problem", "Value"]
 day_tbl["Percentage"] = (day_tbl["Value"] / len(day_df) * 100).round(2)
 
+# ✅ FIX Arabic in tables
+month_tbl["Problem"] = month_tbl["Problem"].apply(fix_arabic)
+day_tbl["Problem"] = day_tbl["Problem"].apply(fix_arabic)
+
 st.subheader("Top Rework Problems")
+
 c1, c2 = st.columns(2)
+
 with c1:
     st.markdown("### Top 10 – Whole Month")
-    st.dataframe(month_tbl, height=350, use_container_width=True)
+    st.dataframe(month_tbl, use_container_width=True)
+
 with c2:
     st.markdown("### Top 10 – Selected Day")
-    st.dataframe(day_tbl, height=350, use_container_width=True)
-
-# ======================================================
-# EXPORT — ADD LARGE, STRUCTURED TABLES BELOW PARETO
-# ======================================================
-st.subheader("⬇️ Download Full Report")
-
-with tempfile.TemporaryDirectory() as tmp:
-    trend_img = os.path.join(tmp, "trend.png")
-    pareto_img = os.path.join(tmp, "pareto.png")
-
-    fig_trend.savefig(trend_img, dpi=300)
-    fig_pareto.savefig(pareto_img, dpi=300)
-
-    img_trend = Image.open(trend_img)
-    img_pareto = Image.open(pareto_img)
-
-    W = max(img_trend.width, img_pareto.width)
-    H = img_trend.height + img_pareto.height + 1900
-    report = Image.new("RGB", (W, H), "white")
-    draw = ImageDraw.Draw(report)
-
-    # Fonts
-    try:
-        font_box = ImageFont.truetype("arial.ttf", 44)
-        font_title = ImageFont.truetype("arial.ttf", 40)
-        font_hdr = ImageFont.truetype("arial.ttf", 34)
-        font_cell = ImageFont.truetype("arial.ttf", 32)
-    except:
-        font_box = ImageFont.truetype("Amiri-Regular.ttf", 44)
-        font_title = ImageFont.truetype("Amiri-Regular.ttf", 40)
-        font_hdr = ImageFont.truetype("Amiri-Regular.ttf", 34)
-        font_cell = ImageFont.truetype("Amiri-Regular.ttf", 32)
-
-    y = 30
-    box_h = 100
-
-    # ---------- KPI BOXES ----------
-    def draw_box(text, y):
-        draw.rectangle((30, y, W - 30, y + box_h), outline="black", width=3)
-        tb = draw.textbbox((0, 0), text, font=font_box)
-        draw.text(
-            ((W - (tb[2] - tb[0])) // 2,
-             y + (box_h - (tb[3] - tb[1])) // 2),
-            text, fill="black", font=font_box
-        )
-
-    draw_box(f"Total Rework: {total_rework}", y); y += box_h + 10
-    draw_box(f"Total Production: {total_production}", y); y += box_h + 10
-    draw_box(f"Monthly Rework / Production: {monthly_ratio:.2f}%", y); y += box_h + 10
-    draw_box(f"Selected Day: {selected_day}", y); y += box_h + 10
-    draw_box(f"Daily Rework / Production: {daily_ratio:.2f}%", y); y += box_h + 40
-
-    # ---------- CHARTS ----------
-    report.paste(img_trend, (0, y))
-    y += img_trend.height + 30
-    report.paste(img_pareto, (0, y))
-    y += img_pareto.height + 60
-
-    # ---------- TABLES ----------
-    table_top_y = y
-    left_x = 40
-    right_x = W // 2 + 20
-    row_h = 60
-
-    # Vertical divider
-    draw.line(
-        [(W // 2, table_top_y - 20), (W // 2, table_top_y + 11 * row_h)],
-        fill="black", width=3
-    )
-
-    def draw_table(x, y, title, df):
-        # Title
-        draw.text((x, y), title, fill="black", font=font_title)
-        y += 60
-
-        # Column layout
-        col_titles = ["Problem", "Value", "Percentage"]
-        col_widths = [700, 180, 220]
-        header_color = (220, 230, 245)
-
-        cx = x
-
-        # Header row
-        for i, h in enumerate(col_titles):
-            draw.rectangle(
-                (cx, y, cx + col_widths[i], y + row_h),
-                fill=header_color,
-                outline="black", width=3
-            )
-            hb = draw.textbbox((0, 0), h, font=font_hdr)
-            draw.text(
-                (cx + (col_widths[i] - (hb[2] - hb[0])) // 2,
-                 y + (row_h - (hb[3] - hb[1])) // 2),
-                h, fill="black", font=font_hdr
-            )
-            cx += col_widths[i]
-
-        y += row_h
-
-        # Data rows
-        for _, r in df.iterrows():
-            cx = x
-            values = [ar(r["Problem"]), str(r["Value"]), f'{r["Percentage"]}%']
-            for i, v in enumerate(values):
-                draw.rectangle(
-                    (cx, y, cx + col_widths[i], y + row_h),
-                    outline="black", width=2
-                )
-                vb = draw.textbbox((0, 0), v, font=font_cell)
-                draw.text(
-                    (cx + (col_widths[i] - (vb[2] - vb[0])) // 2,
-                     y + (row_h - (vb[3] - vb[1])) // 2),
-                    v, fill="black", font=font_cell
-                )
-                cx += col_widths[i]
-            y += row_h
-
-    draw_table(left_x, table_top_y, "Top 10 – Whole Month", month_tbl)
-    draw_table(right_x, table_top_y, "Top 10 – Selected Day", day_tbl)
-
-    # ---------- SAVE ----------
-    jpg_path = os.path.join(tmp, "rework_report.jpg")
-    pdf_path = os.path.join(tmp, "rework_report.pdf")
-
-    report.save(jpg_path)
-    report.save(pdf_path, "PDF")
-
-    with open(jpg_path, "rb") as f:
-        st.download_button("Download Report (JPG)", f, "rework_report.jpg")
-    with open(pdf_path, "rb") as f:
-        st.download_button("Download Report (PDF)", f, "rework_report.pdf")
+    st.dataframe(day_tbl, use_container_width=True)
