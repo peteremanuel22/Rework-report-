@@ -6,7 +6,7 @@ import matplotlib.font_manager as fm
 # Arabic font setup
 # ======================================================
 
-FONT_PATH = "Amiri-Regular.ttf"
+FONT_PATH = "NotoSansArabic-Regular.ttf"
 
 fm.fontManager.addfont(FONT_PATH)
 
@@ -31,7 +31,20 @@ def fix_arabic(text):
 
 # --- FONT CONFIGURATION ---
 # Ensure "Amiri-Regular.ttf" is uploaded directly to your GitHub repo
-FONT_PATH = "Amiri-Regular.ttf"
+FONT_PATH = "NotoSansArabic-Regular.ttf"
+
+try:
+    fm.fontManager.addfont(FONT_PATH)
+
+    arabic_font = fm.FontProperties(
+        fname=FONT_PATH
+    )
+
+    plt.rcParams["font.family"] = arabic_font.get_name()
+    plt.rcParams["axes.unicode_minus"] = False
+
+except Exception as e:
+    st.error(f"Font loading error: {e}")
 
 import streamlit as st
 import arabic_reshaper
@@ -48,14 +61,17 @@ import os
 # Arabic helper (RTL safe)
 # ======================================================
 def ar(text):
-    if pd.isna(text):
+    if text is None:
         return ""
 
     text = str(text).strip()
 
-    reshaped = reshape(text)
+    if text == "":
+        return ""
 
-    return get_display(reshaped)
+    return get_display(
+        arabic_reshaper.reshape(text)
+    )
 # ======================================================
 # Page config
 # ======================================================
@@ -137,54 +153,128 @@ k5.metric("Daily Rework / Production", f"{daily_ratio:.2f}%")
 # ======================================================
 # Daily trend chart (UI)
 # ======================================================
+
 fig_trend, ax = plt.subplots(figsize=(13, 5))
-ax.plot(daily.index, daily["Rework %"], marker="o")
+
+ax.plot(
+    daily.index,
+    daily["Rework %"],
+    marker="o"
+)
 
 for x, y in zip(daily.index, daily["Rework %"]):
-    ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
-                textcoords="offset points", ha="center", fontsize=10)
+    ax.annotate(
+        f"{y:.1f}%",
+        (x, y),
+        xytext=(0, 8),
+        textcoords="offset points",
+        ha="center",
+        fontsize=10
+    )
 
 ax.set_title(
     ar("الاتجاه اليومي لنسبة إعادة التشغيل"),
-    fontproperties=arabic_font
+    fontproperties=arabic_font,
+    fontsize=16
 )
+
 ax.set_xlabel(
     ar("التاريخ"),
-    fontproperties=arabic_font
+    fontproperties=arabic_font,
+    fontsize=12
 )
+
 ax.set_ylabel(
     ar("نسبة إعادة التشغيل %"),
-    fontproperties=arabic_font
+    fontproperties=arabic_font,
+    fontsize=12
 )
+
 plt.xticks(rotation=45)
+
+for label in ax.get_xticklabels():
+    label.set_fontproperties(arabic_font)
+
+for label in ax.get_yticklabels():
+    label.set_fontproperties(arabic_font)
+
 plt.tight_layout()
+
 st.pyplot(fig_trend)
 
 # ======================================================
 # Pareto chart (UI)
 # ======================================================
+
 pareto = rework_df["Problem"].value_counts()
+
 cum_pct = pareto.cumsum() / pareto.sum() * 100
-cutoff_index = list(pareto.index).index(cum_pct[cum_pct >= 80].index[0])
+
+cutoff_index = list(pareto.index).index(
+    cum_pct[cum_pct >= 80].index[0]
+)
 
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
-ax2.bar(range(len(pareto)), pareto.values, width=0.6)
-ax2.set_xlabel(ar("سبب إعادة التشغيل"))
-ax2.set_ylabel(ar("عدد الحالات"))
+
+ax2.bar(
+    range(len(pareto)),
+    pareto.values,
+    width=0.6
+)
+
+ax2.set_xlabel(
+    ar("سبب إعادة التشغيل"),
+    fontproperties=arabic_font,
+    fontsize=12
+)
+
+ax2.set_ylabel(
+    ar("عدد الحالات"),
+    fontproperties=arabic_font,
+    fontsize=12
+)
+
 ax2.set_xticks(range(len(pareto)))
-ax2.set_xticklabels([ar(x) for x in pareto.index],
-                    rotation=45, ha="right", fontsize=9)
+
+ax2.set_xticklabels(
+    [ar(x) for x in pareto.index],
+    rotation=45,
+    ha="right",
+    fontsize=9,
+    fontproperties=arabic_font
+)
+
 ax2.invert_xaxis()
-ax2.axvline(cutoff_index, linestyle="--", linewidth=2)
+
+ax2.axvline(
+    cutoff_index,
+    linestyle="--",
+    linewidth=2
+)
 
 ax3 = ax2.twinx()
-ax3.plot(range(len(pareto)), cum_pct.values, color="red", marker="o")
-ax3.set_ylabel(ar("النسبة التراكمية %"))
+
+ax3.plot(
+    range(len(pareto)),
+    cum_pct.values,
+    color="red",
+    marker="o"
+)
+
+ax3.set_ylabel(
+    ar("النسبة التراكمية %"),
+    fontproperties=arabic_font,
+    fontsize=12
+)
+
+for label in ax2.get_yticklabels():
+    label.set_fontproperties(arabic_font)
 
 plt.subplots_adjust(bottom=0.35)
-plt.tight_layout()
-st.pyplot(fig_pareto)
 
+plt.tight_layout()
+
+st.pyplot(fig_pareto)
 # ======================================================
 # Tables (UI)
 # ======================================================
