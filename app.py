@@ -9,31 +9,43 @@ import tempfile
 import os
 
 # ======================================================
-# Font Configuration & Arabic Helper (CLOUD FIX)
+# Font Configuration & Enhanced Arabic Helper
 # ======================================================
-# 1. Get the absolute path to the font to guarantee Streamlit finds it
+# 1. Get the absolute path to the font
 current_dir = os.path.dirname(os.path.abspath(__file__))
 FONT_PATH = os.path.join(current_dir, "Amiri-Regular.ttf")
 
 # 2. Forcefully register the font into Matplotlib's global cache
 try:
     fm.fontManager.addfont(FONT_PATH)
-    # Get the actual internal name of the font (usually 'Amiri')
     prop = fm.FontProperties(fname=FONT_PATH)
-    # Set it as the global default for all Matplotlib charts
     plt.rcParams['font.family'] = prop.get_name()
-    
-    # Keep this variable for your explicit calls just in case
     arabic_font = prop 
 except FileNotFoundError:
     st.error(f"Error: Could not find '{FONT_PATH}'. Please ensure it is pushed to GitHub.")
     st.stop()
 
+# 3. Custom Reshaper Configuration for Mixed SAP Data
+custom_reshaper = arabic_reshaper.ArabicReshaper(
+    configuration={
+        'delete_harakat': False,
+        'support_ligatures': True,
+        'use_unshaped_instead_of_isolated': True
+    }
+)
+
 def ar(text):
-    """Reshapes and reverses Arabic text for correct RTL rendering."""
-    if pd.isna(text) or not text:
-        return text
-    return get_display(arabic_reshaper.reshape(str(text)))
+    """Reshapes and forcefully reverses Arabic text, ignoring mixed English/Numbers."""
+    if pd.isna(text) or str(text).strip() == "":
+        return ""
+    
+    # Reshape to connect letters
+    reshaped_text = custom_reshaper.reshape(str(text))
+    
+    # CRITICAL FIX: Force base_dir='R' (Right-to-Left) for mixed strings
+    bidi_text = get_display(reshaped_text, base_dir='R')
+    
+    return bidi_text
 
 # ======================================================
 # Page config
@@ -198,7 +210,6 @@ with tempfile.TemporaryDirectory() as tmp:
     report = Image.new("RGB", (W, H), "white")
     draw = ImageDraw.Draw(report)
 
-    # Force the script to use Amiri for the exported image to avoid Arial rendering errors
     try:
         font_box = ImageFont.truetype(FONT_PATH, 44)
         font_title = ImageFont.truetype(FONT_PATH, 40)
@@ -221,11 +232,12 @@ with tempfile.TemporaryDirectory() as tmp:
             text, fill="black", font=font_box
         )
 
-    draw_box(f"Total Rework: {total_rework}", y); y += box_h + 10
-    draw_box(f"Total Production: {total_production}", y); y += box_h + 10
-    draw_box(f"Monthly Rework / Production: {monthly_ratio:.2f}%", y); y += box_h + 10
-    draw_box(f"Selected Day: {selected_day}", y); y += box_h + 10
-    draw_box(f"Daily Rework / Production: {daily_ratio:.2f}%", y); y += box_h + 40
+    # Use the 'ar()' function here as well to ensure RTL reading in the exported boxes
+    draw_box(ar(f"إجمالي إعادة التشغيل: {total_rework}"), y); y += box_h + 10
+    draw_box(ar(f"إجمالي الإنتاج: {total_production}"), y); y += box_h + 10
+    draw_box(ar(f"نسبة إعادة التشغيل الشهرية: {monthly_ratio:.2f}%"), y); y += box_h + 10
+    draw_box(ar(f"اليوم المحدد: {selected_day}"), y); y += box_h + 10
+    draw_box(ar(f"نسبة إعادة التشغيل اليومية: {daily_ratio:.2f}%"), y); y += box_h + 40
 
     # ---------- CHARTS ----------
     report.paste(img_trend, (0, y))
@@ -246,12 +258,12 @@ with tempfile.TemporaryDirectory() as tmp:
     )
 
     def draw_table(x, y, title, df):
-        # Title
-        draw.text((x, y), title, fill="black", font=font_title)
+        # Title (Applied Arabic Fix)
+        draw.text((x, y), ar(title), fill="black", font=font_title)
         y += 60
 
         # Column layout
-        col_titles = ["Problem", "Value", "Percentage"]
+        col_titles = [ar("السبب"), ar("العدد"), ar("النسبة")]
         col_widths = [700, 180, 220]
         header_color = (220, 230, 245)
 
@@ -292,8 +304,8 @@ with tempfile.TemporaryDirectory() as tmp:
                 cx += col_widths[i]
             y += row_h
 
-    draw_table(left_x, table_top_y, "Top 10 – Whole Month", month_tbl)
-    draw_table(right_x, table_top_y, "Top 10 – Selected Day", day_tbl)
+    draw_table(left_x, table_top_y, "أعلى 10 أسباب - الشهر كامل", month_tbl)
+    draw_table(right_x, table_top_y, "أعلى 10 أسباب - اليوم المحدد", day_tbl)
 
     # ---------- SAVE ----------
     jpg_path = os.path.join(tmp, "rework_report.jpg")
