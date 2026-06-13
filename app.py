@@ -1,40 +1,30 @@
 import streamlit as st
-from PIL import Image, ImageFont, ImageDraw
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import plotly.express as px
-
-# --- ARABIC TEXT FIX LIBRARIES ---
-import arabic_reshaper
-from bidi.algorithm import get_display
-
-def fix_arabic(text):
-    """Reshapes and reverses Arabic text for proper rendering in images and charts."""
-    if not text:
-        return text
-    reshaped_text = arabic_reshaper.reshape(str(text))
-    return get_display(reshaped_text)
-
-# --- FONT CONFIGURATION ---
-# Ensure "Amiri-Regular.ttf" is uploaded directly to your GitHub repo
-FONT_PATH = "Amiri-Regular.ttf"
-
-import streamlit as st
-import arabic_reshaper
-from bidi.algorithm import get_display
 import pandas as pd
 import matplotlib.pyplot as plt
-from arabic_reshaper import reshape
+import matplotlib.font_manager as fm
+import arabic_reshaper
 from bidi.algorithm import get_display
 from PIL import Image, ImageDraw, ImageFont
 import tempfile
 import os
 
 # ======================================================
-# Arabic helper (RTL safe)
+# Font Configuration & Arabic Helper
 # ======================================================
+FONT_PATH = "Amiri-Regular.ttf"
+
+# Load the Arabic font for Matplotlib
+try:
+    arabic_font = fm.FontProperties(fname=FONT_PATH)
+except FileNotFoundError:
+    st.error(f"Error: Could not find '{FONT_PATH}'. Please ensure it is uploaded to your GitHub repository.")
+    st.stop()
+
 def ar(text):
-    return get_display(reshape(str(text)))
+    """Reshapes and reverses Arabic text for RTL support."""
+    if pd.isna(text) or not text:
+        return text
+    return get_display(arabic_reshaper.reshape(str(text)))
 
 # ======================================================
 # Page config
@@ -124,9 +114,10 @@ for x, y in zip(daily.index, daily["Rework %"]):
     ax.annotate(f"{y:.1f}%", (x, y), xytext=(0, 8),
                 textcoords="offset points", ha="center", fontsize=10)
 
-ax.set_title(ar("الاتجاه اليومي لنسبة إعادة التشغيل"))
-ax.set_xlabel(ar("التاريخ"))
-ax.set_ylabel(ar("نسبة إعادة التشغيل %"))
+# Apply Arabic font properties here
+ax.set_title(ar("الاتجاه اليومي لنسبة إعادة التشغيل"), fontproperties=arabic_font)
+ax.set_xlabel(ar("التاريخ"), fontproperties=arabic_font)
+ax.set_ylabel(ar("نسبة إعادة التشغيل %"), fontproperties=arabic_font)
 plt.xticks(rotation=45)
 plt.tight_layout()
 st.pyplot(fig_trend)
@@ -140,17 +131,21 @@ cutoff_index = list(pareto.index).index(cum_pct[cum_pct >= 80].index[0])
 
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
 ax2.bar(range(len(pareto)), pareto.values, width=0.6)
-ax2.set_xlabel(ar("سبب إعادة التشغيل"))
-ax2.set_ylabel(ar("عدد الحالات"))
+
+# Apply Arabic font properties here
+ax2.set_xlabel(ar("سبب إعادة التشغيل"), fontproperties=arabic_font)
+ax2.set_ylabel(ar("عدد الحالات"), fontproperties=arabic_font)
 ax2.set_xticks(range(len(pareto)))
+
+# Apply Arabic font properties to X-axis tick labels
 ax2.set_xticklabels([ar(x) for x in pareto.index],
-                    rotation=45, ha="right", fontsize=9)
+                    rotation=45, ha="right", fontsize=9, fontproperties=arabic_font)
 ax2.invert_xaxis()
 ax2.axvline(cutoff_index, linestyle="--", linewidth=2)
 
 ax3 = ax2.twinx()
 ax3.plot(range(len(pareto)), cum_pct.values, color="red", marker="o")
-ax3.set_ylabel(ar("النسبة التراكمية %"))
+ax3.set_ylabel(ar("النسبة التراكمية %"), fontproperties=arabic_font)
 
 plt.subplots_adjust(bottom=0.35)
 plt.tight_layout()
@@ -197,17 +192,15 @@ with tempfile.TemporaryDirectory() as tmp:
     report = Image.new("RGB", (W, H), "white")
     draw = ImageDraw.Draw(report)
 
-    # Fonts
+    # Force the script to use Amiri for the exported image to avoid Arial rendering errors
     try:
-        font_box = ImageFont.truetype("arial.ttf", 44)
-        font_title = ImageFont.truetype("arial.ttf", 40)
-        font_hdr = ImageFont.truetype("arial.ttf", 34)
-        font_cell = ImageFont.truetype("arial.ttf", 32)
-    except:
-        font_box = ImageFont.truetype("Amiri-Regular.ttf", 44)
-        font_title = ImageFont.truetype("Amiri-Regular.ttf", 40)
-        font_hdr = ImageFont.truetype("Amiri-Regular.ttf", 34)
-        font_cell = ImageFont.truetype("Amiri-Regular.ttf", 32)
+        font_box = ImageFont.truetype(FONT_PATH, 44)
+        font_title = ImageFont.truetype(FONT_PATH, 40)
+        font_hdr = ImageFont.truetype(FONT_PATH, 34)
+        font_cell = ImageFont.truetype(FONT_PATH, 32)
+    except OSError:
+        st.error(f"Error: Could not load '{FONT_PATH}' for image export.")
+        st.stop()
 
     y = 30
     box_h = 100
