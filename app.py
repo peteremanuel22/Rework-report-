@@ -4,11 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import arabic_reshaper
 from bidi.algorithm import get_display
-from PIL import Image, ImageDraw, ImageFont
 import os
 
 # ======================================================
-# ✅ Arabic Fix Function
+# ✅ Arabic Fix (ONLY FOR CHARTS)
 # ======================================================
 def fix_arabic(text):
     if not text:
@@ -26,18 +25,33 @@ if os.path.exists(FONT_PATH):
     arabic_font = fm.FontProperties(fname=FONT_PATH)
 else:
     arabic_font = None
-    st.warning("Arabic font not found, default font will be used")
+    st.warning("Font not found")
 
 plt.rcParams["axes.unicode_minus"] = False
 
 # ======================================================
-# ✅ Page Config
+# ✅ PAGE RTL FIX (IMPORTANT)
+# ======================================================
+st.markdown(
+    """
+    <style>
+    body {
+        direction: RTL;
+        text-align: right;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ======================================================
+# ✅ Page
 # ======================================================
 st.set_page_config(layout="wide", page_title="Rework Dashboard")
 st.title("📊 Rework Analysis Dashboard")
 
 # ======================================================
-# ✅ Upload Files
+# ✅ Upload
 # ======================================================
 c1, c2 = st.columns(2)
 
@@ -51,7 +65,7 @@ if not rework_file or not production_file:
     st.stop()
 
 # ======================================================
-# ✅ Read Excel (SAP style)
+# ✅ Read Excel
 # ======================================================
 def read_sap(file):
     raw = pd.read_excel(file, header=None)
@@ -66,7 +80,7 @@ rework_df = read_sap(rework_file)
 prod_df = read_sap(production_file)
 
 # ======================================================
-# ✅ Date Handling
+# ✅ Date
 # ======================================================
 rework_df["Date"] = pd.to_datetime(rework_df.iloc[:, 0], errors="coerce").dt.date
 prod_df["Date"] = pd.to_datetime(prod_df.iloc[:, 0], errors="coerce").dt.date
@@ -113,7 +127,7 @@ k4.metric("Selected Day", selected_day.strftime("%Y-%m-%d"))
 k5.metric("Daily %", f"{daily_ratio:.2f}%")
 
 # ======================================================
-# ✅ Daily Trend Chart
+# ✅ Trend Chart (FIXED Arabic)
 # ======================================================
 fig_trend, ax = plt.subplots(figsize=(13, 5))
 
@@ -134,22 +148,19 @@ ax.set_ylabel(fix_arabic("نسبة إعادة التشغيل %"),
 
 plt.xticks(rotation=45)
 
-for label in ax.get_xticklabels():
-    if arabic_font:
+if arabic_font:
+    for label in ax.get_xticklabels():
         label.set_fontproperties(arabic_font)
-
-for label in ax.get_yticklabels():
-    if arabic_font:
+    for label in ax.get_yticklabels():
         label.set_fontproperties(arabic_font)
 
 plt.tight_layout()
 st.pyplot(fig_trend)
 
 # ======================================================
-# ✅ Pareto Chart (FIXED)
+# ✅ Pareto Chart (FIXED overlap + Arabic)
 # ======================================================
 pareto = rework_df["Problem"].value_counts().head(10)
-
 cum_pct = pareto.cumsum() / pareto.sum() * 100
 
 fig_pareto, ax2 = plt.subplots(figsize=(14, 6))
@@ -171,7 +182,6 @@ ax2.set_xlabel(fix_arabic("سبب إعادة التشغيل"),
 ax2.set_ylabel(fix_arabic("عدد الحالات"),
                fontproperties=arabic_font)
 
-# cumulative line
 ax3 = ax2.twinx()
 ax3.plot(range(len(pareto)), cum_pct.values,
          color="red", marker="o")
@@ -179,14 +189,13 @@ ax3.plot(range(len(pareto)), cum_pct.values,
 ax3.set_ylabel(fix_arabic("النسبة التراكمية %"),
                fontproperties=arabic_font)
 
-# spacing fix
 plt.subplots_adjust(bottom=0.4)
 plt.tight_layout()
 
 st.pyplot(fig_pareto)
 
 # ======================================================
-# ✅ Tables
+# ✅ Tables (NO Arabic fix here!)
 # ======================================================
 month_tbl = rework_df["Problem"].value_counts().head(10).reset_index()
 month_tbl.columns = ["Problem", "Value"]
@@ -196,10 +205,6 @@ day_df = rework_df[rework_df["Date"] == selected_day]
 day_tbl = day_df["Problem"].value_counts().head(10).reset_index()
 day_tbl.columns = ["Problem", "Value"]
 day_tbl["Percentage"] = (day_tbl["Value"] / len(day_df) * 100).round(2)
-
-# ✅ FIX Arabic in tables
-month_tbl["Problem"] = month_tbl["Problem"].apply(fix_arabic)
-day_tbl["Problem"] = day_tbl["Problem"].apply(fix_arabic)
 
 st.subheader("Top Rework Problems")
 
