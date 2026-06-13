@@ -1,4 +1,25 @@
 import streamlit as st
+from PIL import Image, ImageFont, ImageDraw
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+import plotly.express as px
+
+# --- ARABIC TEXT FIX LIBRARIES ---
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+def fix_arabic(text):
+    """Reshapes and reverses Arabic text for proper rendering in images and charts."""
+    if not text:
+        return text
+    reshaped_text = arabic_reshaper.reshape(str(text))
+    return get_display(reshaped_text)
+
+# --- FONT CONFIGURATION ---
+# Ensure "Amiri-Regular.ttf" is uploaded directly to your GitHub repo
+FONT_PATH = "Amiri-Regular.ttf"
+
+import streamlit as st
 import arabic_reshaper
 from bidi.algorithm import get_display
 import pandas as pd
